@@ -72,7 +72,7 @@ void main( void )
      for (n = 0; n < N_SAMPLE / 2; n++) 
      {
        s  = capture[n];
-       s /= 100;
+       s /= N_SAMPLE;
        convert(s);
        for (u8 mm = 0; mm < (256/N_SAMPLE); mm++)
        {
