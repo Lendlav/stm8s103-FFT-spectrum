@@ -5,6 +5,14 @@
 
 //----------------------------------------------------------------------------------
 #define SLAVE_ADDRESS   0x78
+
+#define DATA_MODE     0x40
+#define COMMAND_MODE  0x00   // bit Co = 0, D/C# = 0
+#define column_start  0
+#define column_end    127
+#define page_start    0
+#define page_end      3
+
 //----------------------------------------------------------------------------------
 
 extern unsigned char            lcd_buff[];

@@ -54,14 +54,7 @@ void main( void )
 
      // ********show spectrum values********      
      disableInterrupts();
-        
-#define DATA_MODE     0x40
-#define COMMAND_MODE  0x00   // bit Co = 0, D/C# = 0
-#define column_start  0
-#define column_end    127
-#define page_start    0
-#define page_end      3
-     
+            
      LCD_command(0x21);                 // SSD1306_COLUMNADDR
      LCD_command(column_start);         // column start
      LCD_command(column_end);           // column end

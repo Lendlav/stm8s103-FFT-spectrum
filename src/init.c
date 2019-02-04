@@ -130,7 +130,7 @@ void Init_I2C(void)
 {   
    I2C_DeInit();
    I2C_Init(
-            ((uint32_t)700000), //I2C_MAX_FAST_FREQ, 
+            ((uint32_t)750000), //I2C_MAX_FAST_FREQ, 
             OWN_ADDRESS, 
             I2C_DUTYCYCLE_2, 
             I2C_ACK_CURR, 
