@@ -4,6 +4,10 @@ on:
   push:
     branches: [stm8s103-FFT-spectrum-sdcc]
 
+concurrency:
+  group: stm8s103-FFT-spectrum-sdcc-release
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -56,7 +60,7 @@ jobs:
       - name: Verify release clearance
         run: make release-check
 
-      - name: Publish branch pre-release
+      - name: Publish pre-release and remove older releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -70,3 +74,10 @@ jobs:
             dist/stm8s103-FFT-spectrum.ihx \
             dist/stm8s103-FFT-spectrum.bin \
             dist/stm8s103-FFT-spectrum.map
+
+          published_tags="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name')"
+          while IFS= read -r old_tag; do
+            [[ -z "$old_tag" || "$old_tag" == "$release_tag" ]] && continue
+            echo "Removing older release and tag: $old_tag"
+            gh release delete "$old_tag" --cleanup-tag --yes
+          done <<< "$published_tags"
