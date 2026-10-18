@@ -2,7 +2,8 @@ name: Firmware
 
 on:
   push:
-    branches: [stm8s103-FFT-spectrum-sdcc]
+    tags:
+      - 'v*.*.*'
 
 concurrency:
   group: stm8s103-FFT-spectrum-sdcc-release
@@ -39,8 +40,9 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+
     steps:
-      - name: Checkout branch commit
+      - name: Checkout version commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Download firmware artifact
@@ -49,24 +51,28 @@ jobs:
           name: stm8s103-firmware
           path: dist
 
-      - name: Publish pre-release and remove older releases
+      - name: Publish release and remove older releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          short_sha="${GITHUB_SHA::7}"
-          release_tag="sdcc-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          release_tag="${GITHUB_REF_NAME}"
+
           gh release create "$release_tag" \
             --target "$GITHUB_SHA" \
-            --title "STM8S103 SDCC build $short_sha" \
-            --notes "Automated pre-release from $GITHUB_REF_NAME at commit $GITHUB_SHA." \
+            --title "$release_tag" \
+            --notes "" \
             --prerelease \
             dist/stm8s103-FFT-spectrum.ihx \
             dist/stm8s103-FFT-spectrum.bin \
             dist/stm8s103-FFT-spectrum.map
 
-          published_tags="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name')"
+          published_tags="$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[].tag_name')"
+
           while IFS= read -r old_tag; do
             [[ -z "$old_tag" || "$old_tag" == "$release_tag" ]] && continue
+
             echo "Removing older release and tag: $old_tag"
             gh release delete "$old_tag" --cleanup-tag --yes
           done <<< "$published_tags"
