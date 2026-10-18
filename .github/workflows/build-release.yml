@@ -2,16 +2,7 @@ name: Firmware
 
 on:
   push:
-    branches: [master]
-    tags: ['v*']
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      publish_release:
-        description: Publish a GitHub Release from the selected v* tag
-        type: boolean
-        required: true
-        default: false
+    branches: [stm8s103-FFT-spectrum-sdcc]
 
 permissions:
   contents: read
@@ -26,15 +17,10 @@ jobs:
       - name: Install SDCC
         run: sudo apt-get update && sudo apt-get install --yes sdcc=4.2.0+dfsg-1 sdcc-libraries=4.2.0+dfsg-1 make python3
 
-      - name: Verify metadata, FFT signals, and memory; build firmware
+      - name: Verify and build firmware
         run: make verify
 
-      - name: Verify release clearance before uploading firmware
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && startsWith(github.ref, 'refs/tags/v') }}
-        run: make release-check
-
-      - name: Upload build outputs
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && startsWith(github.ref, 'refs/tags/v') }}
+      - name: Upload firmware files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: stm8s103-firmware
@@ -43,32 +29,3 @@ jobs:
             build/stm8s103-FFT-spectrum.bin
             build/stm8s103-FFT-spectrum.map
           if-no-files-found: error
-
-  release:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release == true && startsWith(github.ref, 'refs/tags/v') }}
-    needs: build
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout the selected tag
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-      - name: Download build outputs
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: stm8s103-firmware
-          path: dist
-
-      - name: Verify current-tree release clearance
-        run: make release-check
-
-      - name: Publish the confirmed release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create --verify-tag --generate-notes "$GITHUB_REF_NAME" \
-            dist/stm8s103-FFT-spectrum.ihx \
-            dist/stm8s103-FFT-spectrum.bin \
-            LICENSE README.md \
-            LICENSES/GPL-2.0.txt LICENSES/SDCC-GPL-LE.txt

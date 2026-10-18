@@ -38,8 +38,9 @@ make verify
 make clean
 ```
 
-GitHub Actions проверяет pull request и сборки `master`. Выпуск релиза запускается
-вручную для тега версии. Прошивка на реальном устройстве пока не проверялась.
+GitHub Actions собирает ветку `stm8s103-FFT-spectrum-sdcc` при каждом push.
+Файлы прошивки доступны в артефактах соответствующего запуска. На реальном
+устройстве прошивка пока не проверялась.
 
 ## English
 
@@ -78,5 +79,6 @@ Remove build outputs:
 make clean
 ```
 
-GitHub Actions checks pull requests and builds on `master`. Releases are started
-manually from a version tag. The firmware has not yet been tested on hardware.
+GitHub Actions builds `stm8s103-FFT-spectrum-sdcc` on every push. Firmware files
+are available in the artifacts for that run. The firmware has not yet been
+tested on hardware.
