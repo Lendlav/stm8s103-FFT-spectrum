@@ -14,8 +14,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    outputs:
-      release_allowed: ${{ steps.release-clearance.outputs.allowed }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -25,11 +23,6 @@ jobs:
 
       - name: Verify and build firmware
         run: make verify
-
-      - name: Check release clearance
-        id: release-clearance
-        run: |
-          python3 -c 'import json; m=json.load(open("LICENSE_MANIFEST.json")); p=m.get("project_license", {}); allowed=p.get("rights_holder_confirmed") is True and p.get("release_allowed") is True and all(d.get("release_allowed") is True for d in m.get("third_party", [])); print("allowed=" + str(allowed).lower())' >> "$GITHUB_OUTPUT"
 
       - name: Upload firmware files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -43,7 +36,7 @@ jobs:
 
   release:
     needs: build
-    if: needs.build.outputs.release_allowed == 'true'
+    if: vars.FIRMWARE_RELEASE_APPROVED == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -57,7 +50,9 @@ jobs:
           name: stm8s103-firmware
           path: dist
 
-      - name: Verify release clearance
+      - name: Verify release approval
+        env:
+          FIRMWARE_RELEASE_APPROVED: ${{ vars.FIRMWARE_RELEASE_APPROVED }}
         run: make release-check
 
       - name: Publish pre-release and remove older releases

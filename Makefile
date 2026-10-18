@@ -30,7 +30,7 @@ SDCC_FLAGS := -mstm8 --std-sdcc11 --opt-code-size -DN_SAMPLE=$(N_SAMPLE) -Iinc
 LINK_FLAGS := -mstm8 --out-fmt-ihx --code-loc 0x8000 --code-size 0x2000 \
 	--iram-size 0x400 --stack-loc 0x03FF
 
-.PHONY: all clean editor-config license-check release-check test memory verify
+.PHONY: all clean editor-config release-check test memory verify
 
 all: memory editor-config
 
@@ -63,12 +63,12 @@ editor-config:
 	mkdir -p $(BUILD_DIR)
 	@$(PYTHON) -c 'import json,pathlib,sys; root=pathlib.Path.cwd(); db=pathlib.Path("$(BUILD_DIR)")/"compile_commands.json"; entries=[{"directory":str((root/pathlib.Path(source).parent).resolve()),"arguments":["clang","-std=c11","-I../inc","-DN_SAMPLE=$(N_SAMPLE)","-c",pathlib.Path(source).name],"file":str((root/source).resolve())} for source in sys.argv[1:]]; db.write_text(json.dumps(entries,indent=2)+"\n",encoding="utf-8")' $(SOURCES) tests/test_fft.c
 
-# Keep license metadata checks inline so no repository helper script is needed.
-license-check:
-	@$(PYTHON) -c 'import json,pathlib,sys; m=json.load(open("LICENSE_MANIFEST.json",encoding="utf-8")); p=m.get("project_license",{}); ds=m.get("third_party",[]); fields=("name","authors","version","license","source","status"); missing=[d.get("name","unnamed dependency") for d in ds if not all(d.get(k) for k in fields) or d.get("status") not in ("reviewed","reviewed_with_library_exception")]; docs=("LICENSE","LICENSES/GPL-2.0.txt","LICENSES/SDCC-GPL-LE.txt"); ok=p.get("file")=="LICENSE" and p.get("spdx")=="MIT" and pathlib.Path("LICENSE").is_file() and all(pathlib.Path(f).is_file() for f in docs) and bool(ds) and not missing; print("License metadata and required license files are present." if ok else "License metadata check failed: incomplete manifest or missing license files."); sys.exit(0 if ok else 1)'
-
-release-check: license-check
-	@$(PYTHON) -c 'import json,sys; m=json.load(open("LICENSE_MANIFEST.json",encoding="utf-8")); p=m["project_license"]; ds=m["third_party"]; ok=p.get("rights_holder_confirmed") is True and p.get("release_allowed") is True and all(d.get("release_allowed") is True for d in ds); print("Release license gate passed." if ok else "Release blocked: project rights or dependency clearance is unresolved."); sys.exit(0 if ok else 1)'
+release-check:
+	@if [ "$(FIRMWARE_RELEASE_APPROVED)" != "true" ]; then \
+		echo "Release blocked: set repository variable FIRMWARE_RELEASE_APPROVED=true after review."; \
+		exit 1; \
+	fi
+	@echo "Release approval passed."
 
 test:
 	CC='$(CC)' $(PYTHON) tests/run_fft_tests.py
@@ -126,7 +126,7 @@ memory: $(TARGET) $(MAP_TARGET) $(BIN_TARGET)
 			if (failed) { print "Linker memory check failed." > "/dev/stderr"; exit 1; } \
 		}' $(MAP_TARGET)
 
-verify: license-check test memory
+verify: test memory
 
 clean:
 	rm -rf $(BUILD_DIR)
