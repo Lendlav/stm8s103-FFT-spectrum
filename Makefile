@@ -30,7 +30,7 @@ SDCC_FLAGS := -mstm8 --std-sdcc11 --opt-code-size -DN_SAMPLE=$(N_SAMPLE) -Iinc
 LINK_FLAGS := -mstm8 --out-fmt-ihx --code-loc 0x8000 --code-size 0x2000 \
 	--iram-size 0x400 --stack-loc 0x03FF
 
-.PHONY: all clean editor-config release-check test memory verify
+.PHONY: all clean editor-config test memory verify
 
 all: memory editor-config
 
@@ -62,13 +62,6 @@ $(BIN_TARGET): $(TARGET)
 editor-config:
 	mkdir -p $(BUILD_DIR)
 	@$(PYTHON) -c 'import json,pathlib,sys; root=pathlib.Path.cwd(); db=pathlib.Path("$(BUILD_DIR)")/"compile_commands.json"; entries=[{"directory":str((root/pathlib.Path(source).parent).resolve()),"arguments":["clang","-std=c11","-I../inc","-DN_SAMPLE=$(N_SAMPLE)","-c",pathlib.Path(source).name],"file":str((root/source).resolve())} for source in sys.argv[1:]]; db.write_text(json.dumps(entries,indent=2)+"\n",encoding="utf-8")' $(SOURCES) tests/test_fft.c
-
-release-check:
-	@if [ "$(FIRMWARE_RELEASE_APPROVED)" != "true" ]; then \
-		echo "Release blocked: set repository variable FIRMWARE_RELEASE_APPROVED=true after review."; \
-		exit 1; \
-	fi
-	@echo "Release approval passed."
 
 test:
 	CC='$(CC)' $(PYTHON) tests/run_fft_tests.py

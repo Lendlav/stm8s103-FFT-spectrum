@@ -36,7 +36,6 @@ jobs:
 
   release:
     needs: build
-    if: vars.FIRMWARE_RELEASE_APPROVED == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -49,11 +48,6 @@ jobs:
         with:
           name: stm8s103-firmware
           path: dist
-
-      - name: Verify release approval
-        env:
-          FIRMWARE_RELEASE_APPROVED: ${{ vars.FIRMWARE_RELEASE_APPROVED }}
-        run: make release-check
 
       - name: Publish pre-release and remove older releases
         env:

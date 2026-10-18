@@ -39,11 +39,9 @@ make clean
 ```
 
 GitHub Actions собирает ветку `stm8s103-FFT-spectrum-sdcc` при каждом push.
-Файлы прошивки доступны в артефактах соответствующего запуска; после успешной
-сборки публикуется prerelease, если в настройках репозитория задана переменная
-`FIRMWARE_RELEASE_APPROVED=true`. После публикации удаляются предыдущие релизы
-и их теги, поэтому остаётся только самый новый релиз. На реальном устройстве
-прошивка пока не проверялась.
+После успешной сборки Action публикует prerelease с прошивкой и удаляет
+предыдущие релизы. GitHub также прикладывает архивы исходников тега. На реальном
+устройстве прошивка пока не проверялась.
 
 ## English
 
@@ -82,8 +80,7 @@ Remove build outputs:
 make clean
 ```
 
-GitHub Actions builds `stm8s103-FFT-spectrum-sdcc` on every push. Firmware files
-are available in that run's artifacts; a prerelease is published when the
-repository variable `FIRMWARE_RELEASE_APPROVED=true` is set. Older releases and
-their tags are deleted after publication, leaving only the newest release. The
-firmware has not yet been tested on hardware.
+GitHub Actions builds `stm8s103-FFT-spectrum-sdcc` on every push. After a
+successful build, it publishes a prerelease with the firmware and deletes older
+releases. GitHub also attaches source archives for the release tag. The firmware
+has not yet been tested on hardware.
