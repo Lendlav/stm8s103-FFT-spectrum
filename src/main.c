@@ -1,153 +1,132 @@
-//******************************************************************************
-//
-//  simple spectrum whit using stm8s103 and 128x32 OLED I2C
-//
-//******************************************************************************
-
+/* SPDX-License-Identifier: MIT */
 #include "main.h"
-#include "fft__.h"
+#include "app_config.h"
+#include "acquisition.h"
+#include "fft.h"
+#include "interrupts.h"
 #include "SSD1306.h"
-//----------------------------------------------------------------------------------
-typedef union {
-  struct {
-    u8 HHB;
-    u8 HB;
-    u8 MB;
-    u8 LB;
-  };  
-  u32 all;
-  u8 arr[4];
-} line;
-//------------------------------------------------------------------------------
 
-__IO u32 count;         // delay counter
-__IO u8  isr_flag = 0;  // sample flag
-line my_line;           // screen line
+/* Magnitudes and sample buffers stay static to protect the 1 KiB RAM budget. */
+static uint16_t magnitudes[N_SAMPLE / 2u];
 
-int16_t    capture    [N_SAMPLE]; /* Wave captureing buffer */
-complex_t  bfly_buff  [N_SAMPLE]; /* FFT buffer */
- 
-//------------------------------------------------------------------------------
-void capture_wave (uint16_t count);  
-void convert(int value);
-//------------------------------------------------------------------------------
+/* Half-open bin ranges make each band a compact interval and omit DC. */
+#if N_SAMPLE == 32u
+#define DISPLAY_BAR_COUNT 8u
+static const uint8_t display_bin_edges[DISPLAY_BAR_COUNT + 1u] = {
+  1u, 2u, 3u, 4u, 6u, 8u, 10u, 13u, 16u
+};
+#elif N_SAMPLE == 64u
+#define DISPLAY_BAR_COUNT 16u
+static const uint8_t display_bin_edges[DISPLAY_BAR_COUNT + 1u] = {
+  1u, 2u, 3u, 4u, 5u, 6u, 8u, 10u, 12u,
+  14u, 16u, 18u, 20u, 23u, 26u, 29u, 32u
+};
+#else
+#define DISPLAY_BAR_COUNT 24u
+static const uint8_t display_bin_edges[DISPLAY_BAR_COUNT + 1u] = {
+  1u, 2u, 3u, 4u, 5u, 6u, 7u, 9u, 11u, 13u,
+  15u, 17u, 20u, 23u, 26u, 29u, 32u, 36u, 40u,
+  44u, 48u, 52u, 56u, 60u, 64u
+};
+#endif
 
-void main( void )
+static uint32_t make_bar(uint16_t height)
 {
-   Init_CLK();
-   Init_GPIO();
-   Init_I2C();
-   Init_ADC(ADC1_CHANNEL_6);
-   TIM4_Config();
-   TIM1_Config();
-   Init_ITC();
-   delay(500);  //dalay must be here before the lcd init call
-   LCD_Init();
-   
-   uint16_t m, n, s;
-
-   while(1)
-   {
-     capture_wave(N_SAMPLE);            //collect and prepare samples
-     fix_fft(capture, bfly_buff);       //transform samples                  
-     fft_out(bfly_buff, capture);       //prepare spectrum values 
-
-     // ********show spectrum values********      
-     disableInterrupts();
-            
-     LCD_command(0x21);                 // SSD1306_COLUMNADDR
-     LCD_command(column_start);         // column start
-     LCD_command(column_end);           // column end
-     LCD_command(0x22);                 // SSD1306_PAGEADDR
-     LCD_command(page_start);           // page start
-     LCD_command(page_end);             // page end (4 pages for 32 rows OLED)
-   
-     I2C_GenerateSTART(ENABLE);
-     while (!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT));
-     I2C_Send7bitAddress(SLAVE_ADDRESS, I2C_DIRECTION_TX);
-     while (!I2C_CheckEvent(I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED));
-     I2C_SendData(DATA_MODE);
-     while (!I2C_CheckEvent(I2C_EVENT_MASTER_BYTE_TRANSMITTED)); 
-     
-     for (n = 0; n < N_SAMPLE / 2; n++) 
-     {
-       s  = capture[n];
-       s /= N_SAMPLE;
-       convert(s);
-       for (u8 mm = 0; mm < (256/N_SAMPLE); mm++)
-       {
-         if(mm > ((256/N_SAMPLE)/3) )
-         {
-            my_line.all = 0;  //skeep some line
-         }
-         else
-         {
-           if((n%1)==0)my_line.LB |= 0x01;
-           if((n%5)==0)my_line.LB |= 0x05;  //add the dots above spectrum
-           if((n%10)==0)my_line.LB |= 0x15;
-         }
-         for (m = 0; m < 4; m++)
-         {
-           I2C->DR = my_line.arr[3-m];
-           while (!I2C_CheckEvent(I2C_EVENT_MASTER_BYTE_TRANSMITTED));          
-         }
-       }
-     }
-     
-     I2C_GenerateSTOP(ENABLE);      
-     enableInterrupts();
-   }   
+  if (height >= 31u) {
+    return 0xFFFFFFFFUL;
+  }
+  return (1UL << (height + 1u)) - 1u;
 }
-/*------------------------------------------------*/
-//  convert int to line
-/*------------------------------------------------*/
-void convert(int value)
-{ 
-  my_line.all &= 0x80000000; 
-  u32 mask     = 0x80000000;
-  
-  while(value>0)
-  {
-    mask >>= 1;
-    mask  |= 0x80000000;
-    value -= 1;     
-  }  
-  my_line.all |=mask; 
-}
-/*------------------------------------------------*/
-/*                  Capture waveform              */
-/*------------------------------------------------*/
-void capture_wave (uint16_t cnt)
-{ 
-  u8 i     = 0;
-  u16 adc  = 0;
-  isr_flag = RESET;
 
-  do 
-  {
-    if(isr_flag)
-    {
-      isr_flag = RESET;     
- 
-      ADC1->CR1 |= ADC1_CR1_ADON;  
-      while(ADC1_GetFlagStatus(ADC1_FLAG_EOC) == RESET); 
-      adc = ADC1_GetConversionValue() - 511;
-      
-      //prepare a complex value
-      bfly_buff[position[i]].real = FIX(adc, ham[i]);
-      bfly_buff[i].image = 0;
+static uint16_t get_band_peak(uint8_t band)
+{
+  uint8_t bin;
+  uint16_t peak = 0u;
 
-      i++;
-      cnt--;
+  for (bin = display_bin_edges[band]; bin < display_bin_edges[band + 1u]; ++bin) {
+    if (magnitudes[bin] > peak) {
+      peak = magnitudes[bin];
     }
-  } while(cnt); 
+  }
+  return peak;
 }
-//---------------------------------------------
-void delay(u32 nTime)
-{         
-  count = nTime;
-  while(count)
-  {
-    continue;
+
+static ErrorStatus draw_spectrum(void)
+{
+  uint16_t band;
+  uint16_t page;
+  uint16_t x;
+  uint16_t x_start;
+  uint16_t x_end;
+  uint16_t height;
+  uint16_t peak;
+  uint32_t level;
+  uint32_t column;
+
+  if (LCD_SetWindow(0u, SSD1306_COLUMN_COUNT - 1u,
+                    0u, SSD1306_PAGE_COUNT - 1u) != SUCCESS ||
+      LCD_BeginData() != SUCCESS) {
+    return ERROR;
+  }
+
+  /* Magnitudes are normalized by the FFT stages, so no extra N division is needed. */
+  for (band = 0u; band < DISPLAY_BAR_COUNT; ++band) {
+    peak = get_band_peak((uint8_t)band);
+    level = peak;
+    height = (uint16_t)((level * 32u) / (level + DISPLAY_LEVEL_REFERENCE));
+    if (height > 31u) {
+      height = 31u;
+    }
+
+    x_start = (uint16_t)(((uint32_t)band * SSD1306_COLUMN_COUNT) /
+                         DISPLAY_BAR_COUNT);
+    x_end = (uint16_t)(((uint32_t)(band + 1u) * SSD1306_COLUMN_COUNT) /
+                       DISPLAY_BAR_COUNT);
+    for (x = x_start; x < x_end; ++x) {
+      column = (x + 1u == x_end) ? 0u : make_bar(height);
+      /* Vertical addressing advances one 8-pixel page at a time. */
+      for (page = 0u; page < SSD1306_PAGE_COUNT; ++page) {
+        if (LCD_WriteData((uint8_t)(column >> (page * 8u))) != SUCCESS) {
+          LCD_AbortData();
+          return ERROR;
+        }
+      }
+    }
+  }
+  return LCD_EndData();
+}
+
+void main(void)
+{
+  fft_complex_t *samples;
+  uint16_t bin;
+
+  Init_CLK();
+  Init_GPIO();
+  Init_I2C();
+  Init_ADC(6u);
+  TIM4_Config();
+  Acquisition_Init();
+  CPU_EnableInterrupts();
+
+  /* Let the OLED supply and bus settle before its first command sequence. */
+  Acquisition_DelayTicks(500u);
+  (void)LCD_Init();
+  samples = Acquisition_GetFftBuffer();
+
+  while (1) {
+    Acquisition_Start();
+    while (Acquisition_GetStatus() == ACQUISITION_RUNNING) {
+      /* TIM4 spaces samples and ADC1 completes them from interrupt handlers. */
+    }
+    if (Acquisition_GetStatus() != ACQUISITION_READY) {
+      continue; /* A missed sample invalidates the time spacing for this frame. */
+    }
+
+    FFT_Process(samples);
+    for (bin = 0u; bin < N_SAMPLE / 2u; ++bin) {
+      magnitudes[bin] = FFT_Magnitude(&samples[bin]);
+    }
+    (void)draw_spectrum();
   }
 }
