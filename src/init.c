@@ -1,142 +1,111 @@
-//*****************************************************************************
-//
-//*****************************************************************************
+/* SPDX-License-Identifier: MIT */
 #include "main.h"
+#include "app_config.h"
+#include "stm8_regs.h"
 
-//---------------------------------------------
-#define TIM4_PERIOD       155
-//---------------------------------------------
+static uint8_t adc_channel = 6u;
 
-//---------------------------------------------
-void TIM4_Config(void)
-{
-  /* TIM4 configuration:
-   - TIM4CLK is set to 16 MHz, the TIM4 Prescaler is equal to 128 so the TIM1 counter
-   clock used is 16 MHz / 128 = 125 000 Hz
-  - With 125 000 Hz we can generate time base:
-      max time base is 2.048 ms if TIM4_PERIOD = 255 --> (255 + 1) / 125000 = 2.048 ms
-      min time base is 0.016 ms if TIM4_PERIOD = 1   --> (  1 + 1) / 125000 = 0.016 ms
-  - In this example we need to generate a time base equal to 1 ms
-   so TIM4_PERIOD = (0.001 * 125000 - 1) = 124 */
-
-  /* Time base configuration */
-  TIM4_TimeBaseInit(TIM4_PRESCALER_16, TIM4_PERIOD);
-  /* Clear TIM4 update flag */
-  TIM4_ClearFlag(TIM4_FLAG_UPDATE);
-  /* Enable update interrupt */
-  TIM4_ITConfig(TIM4_IT_UPDATE, ENABLE);
-  
-  /* Enable TIM4 */
-  TIM4_Cmd(ENABLE);
-}
-//---------------------------------------------
-void TIM1_Config(void)
-{
-  TIM1_DeInit();
-  /* Time base configuration */
-  /*
-  TIM1_Period = INIT_TIM1_ARR
-  TIM1_Prescaler = 0
-  TIM1_RepetitionCounter=0
-  */
-  TIM1_TimeBaseInit(15, TIM1_COUNTERMODE_UP, 2000, 0);
-  
-  /* PWM configuration */
-  /*
-  TIM1_OCMode      = TIM1_OCMODE_PWM1
-  TIM1_OutputState = TIM1_OUTPUTSTATE_ENABLE
-  TIM1_Pulse       = INIT_TIM1_CCR1
-  TIM1_OCPolarity  = TIM1_OCPOLARITY_LOW
-  */
-  TIM1_OC1Init(TIM1_OCMODE_PWM1, 
-               TIM1_OUTPUTSTATE_ENABLE, 
-               TIM1_OUTPUTNSTATE_DISABLE,
-               1000, 
-               TIM1_OCPOLARITY_LOW, 
-               TIM1_OCNPOLARITY_LOW, 
-               TIM1_OCIDLESTATE_RESET, 
-               TIM1_OCNIDLESTATE_RESET);
-  
-//  /* Update Interrupt Enable */
-//  TIM1_ITConfig(TIM1_IT_UPDATE, ENABLE);
-//  
-  /* ARRPreload Enable */
-  TIM1_ARRPreloadConfig(ENABLE);
-  
-  /* Enable TIM1 */
-  TIM1_Cmd(ENABLE);
-  
-  /* Enable CC1 output*/
-  TIM1_CtrlPWMOutputs(ENABLE);
-}
-//---------------------------------------------
 void Init_CLK(void)
 {
-   CLK_DeInit();
-   CLK_SYSCLKConfig(CLK_PRESCALER_HSIDIV1);  // 1..8
-   CLK_SYSCLKConfig(CLK_PRESCALER_CPUDIV1); // 1..128   
-   CLK_ClockSwitchConfig(CLK_SWITCHMODE_AUTO, CLK_SOURCE_HSI, DISABLE, CLK_CURRENTCLOCKSTATE_DISABLE);
-   
-    //   CLK_ClockSwitchConfig(CLK_SWITCHMODE_AUTO, CLK_SOURCE_LSI, DISABLE, CLK_CURRENTCloCKSTATE_DISABLE); 
-    //   CLK_CCOConfig(CLK_OUTPUT_CPU);   
-    //   CLK_CCOCmd(ENABLE);  
-}
-//---------------------------------------------
+  /* Select the reset HSI source without division: fCPU = fMASTER = 16 MHz. */
+  CLK_CKDIVR = 0x00u;
 
-void Init_EXTI(void)
-{
-   //   EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_ONLY);
-   //   EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOD, EXTI_SENSITIVITY_FALL_ONLY);
-   //   EXTI_SetTLISensitivity(EXTI_TLISENSITIVITY_RISE_ONLY);
+  /* The reset state enables all peripheral clocks; explicitly keep used ones on. */
+  CLK_PCKENR1 |= 0x10u; /* PCKEN14: TIM4 on STM8S103. */
+  CLK_PCKENR1 |= 0x01u; /* PCKEN10: I2C. */
+  CLK_PCKENR2 |= 0x08u; /* PCKEN23: ADC. */
 }
 
-//---------------------------------------------
-void Init_ITC(void)
-{ 
-  //  ITC_SetSoftwarePriority(ITC_IRQ_PORTA, ITC_PRIORITYLEVEL_1);
-  //   ITC_SetSoftwarePriority(ITC_IRQ_AWU, ITC_PRIORITYLEVEL_1);
-  //   ITC_SetSoftwarePriority(ITC_IRQ_PORTC, ITC_PRIORITYLEVEL_2);
-  //   ITC_SetSoftwarePriority(ITC_IRQ_TIM4_OVF, ITC_PRIORITYLEVEL_1);
-  //   ITC_SetSoftwarePriority(ITC_IRQ_TLI, ITC_PRIORITYLEVEL_1);
-  
-   enableInterrupts();
-}
-//---------------------------------------------
 void Init_GPIO(void)
-{  
-   GPIO_DeInit(GPIOA);
-   GPIO_DeInit(GPIOB);
-   GPIO_DeInit(GPIOC);
-   GPIO_DeInit(GPIOD);
+{
+  /* I2C is open-drain; external pull-ups on PB4/PB5 are required by the bus. */
+  GPIOB_ODR &= (uint8_t)~GPIO_I2C_PINS;
+  GPIOB_CR1 &= (uint8_t)~GPIO_I2C_PINS;
+  GPIOB_CR2 |= GPIO_I2C_PINS;
+  GPIOB_DDR |= GPIO_I2C_PINS;
+}
 
-   GPIO_Init(GPIOD,GPIO_PIN_3,GPIO_MODE_OUT_PP_LOW_FAST);
-}
-//---------------------------------------------
-void Init_ADC(u8 channel)
-{ 
-   ADC1_DeInit();
-   ADC1_Init(ADC1_CONVERSIONMODE_SINGLE, 
-             channel, 
-             ADC1_PRESSEL_FCPU_D12, 
-             ADC1_EXTTRIG_TIM, DISABLE, 
-             ADC1_ALIGN_RIGHT, 
-             ADC1_SCHMITTTRIG_CHANNEL6,DISABLE
-                );
-   ADC1_Cmd(ENABLE);
-}
-//---------------------------------------------
-#define OWN_ADDRESS     0x70
 void Init_I2C(void)
-{   
-   I2C_DeInit();
-   I2C_Init(
-            ((uint32_t)750000), //I2C_MAX_FAST_FREQ, 
-            OWN_ADDRESS, 
-            I2C_DUTYCYCLE_2, 
-            I2C_ACK_CURR, 
-            I2C_ADDMODE_7BIT, 
-            16 
-               );  
+{
+  /* Configure fast-mode I2C at 16 MHz: 16 MHz / (3 * 14) = 380.95 kHz. */
+  I2C_CR1 = 0u;
+  I2C_CR2 = 0u;
+  I2C_SR2 = 0u;
+  I2C_FREQR = 16u;
+  I2C_CCRH = 0x80u; /* Fast mode, duty ratio 2:1, high CCR bits are zero. */
+  I2C_CCRL = 14u;
+  I2C_TRISER = 6u;  /* Fast-mode maximum rise time at a 16 MHz peripheral clock. */
+  I2C_CR1 = I2C_CR1_PE;
 }
-//---------------------------------------------
 
+void Init_ADC(uint8_t channel)
+{
+  adc_channel = channel & ADC_CSR_CHANNEL;
+
+  /* Power down before changing the ADC prescaler or channel configuration. */
+  ADC1_CR1 = 0u;
+  ADC1_CR2 = 0u; /* Single conversion, right alignment, no external trigger. */
+  ADC1_CR3 = 0u;
+  ADC1_CSR = (uint8_t)(ADC_CSR_EOCIE | adc_channel);
+
+  /* AIN6 is in TDRL bit 6; disabling its Schmitt trigger selects analog input. */
+  ADC1_TDRL |= (uint8_t)(1u << adc_channel);
+  ADC1_CR1 = ADC_CR1_PRESCALE_12;
+  ADC1_CR1 |= ADC_CR1_ADON; /* First ADON write wakes the converter. */
+}
+
+void ADC_Reinitialize(void)
+{
+  /* Recover from a wedged conversion without relying on a vendor driver. */
+  Init_ADC(adc_channel);
+}
+
+void ADC_StartConversion(void)
+{
+  /* EOC is cleared by writing zero; the second ADON=1 write starts a sample. */
+  ADC1_CSR = (uint8_t)(ADC1_CSR & (uint8_t)~ADC_CSR_EOC);
+  ADC1_CR1 |= ADC_CR1_ADON;
+}
+
+uint16_t ADC_ReadConversionValue(void)
+{
+  uint8_t low;
+  uint8_t high;
+
+  /* Right-aligned ADC data must be read LSB first to keep the pair coherent. */
+  low = ADC1_DRL;
+  high = ADC1_DRH;
+  return (uint16_t)(((uint16_t)high << 8) | low);
+}
+
+void ADC_ClearEndOfConversion(void)
+{
+  ADC1_CSR = (uint8_t)(ADC1_CSR & (uint8_t)~ADC_CSR_EOC);
+}
+
+void TIM4_Config(void)
+{
+  TIM4_CR1 = 0u;
+  TIM4_IER = 0u;
+  TIM4_SR = 0u;
+  TIM4_CNTR = 0u;
+  TIM4_PSCR = SAMPLE_TIMER_PRESCALER;
+  TIM4_ARR = SAMPLE_TIMER_RELOAD;
+  TIM4_EGR = 0x01u; /* Load the prescaler and auto-reload value immediately. */
+  TIM4_SR = 0u;     /* Clear the update flag caused by the software update. */
+  TIM4_IER = TIM4_IER_UIE;
+  TIM4_CR1 = TIM4_CR1_CEN;
+}
+
+void TIM4_ClearUpdateFlag(void)
+{
+  /* TIM4 has a single status flag, so writing zero clears the update event. */
+  TIM4_SR = 0u;
+}
+
+void CPU_EnableInterrupts(void)
+{
+  __asm
+    rim
+  __endasm;
+}

@@ -1,0 +1,12 @@
+/build*/
+.cache/
+.clangd
+clangd_sdcc_compat.h
+*.rel
+*.asm
+*.lst
+*.rst
+*.sym
+*.lk
+*.map
+*.ihx

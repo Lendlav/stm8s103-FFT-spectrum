@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "project_license": {
+    "file": "LICENSE",
+    "spdx": "MIT",
+    "copyright": "2019-2026 Lendlav",
+    "scope": "Original project code in the current working tree; see README.md for third-party components and scope.",
+    "rights_holder_confirmed": false,
+    "release_allowed": false
+  },
+  "build_tools": [
+    "sdcc=4.2.0+dfsg-1",
+    "sdcc-libraries=4.2.0+dfsg-1",
+    "make",
+    "python3"
+  ],
+  "third_party": [
+    {
+      "name": "SDCC compiler and STM8 runtime",
+      "authors": "Borut Razem and SDCC contributors; assembler lineage Alan R. Baldwin; individual copyright holders are listed in Debian's package copyright metadata",
+      "version": "4.2.0+dfsg-1 (Ubuntu 24.04 packages sdcc and sdcc-libraries)",
+      "license": "GPL-2.0-or-later compiler; GPL-3.0-or-later assembler; linked runtime modules use GPL+LE (GPL with SDCC library exception)",
+      "source": "https://sdcc.sourceforge.io/",
+      "linked_library_members": [
+        "_mulint.rel",
+        "_divulong.rel",
+        "memcpy.rel",
+        "_mullong.rel",
+        "__mulsint2slong.rel"
+      ],
+      "system_headers": [
+        {
+          "name": "stdint.h",
+          "copyright": "Maarten Brock (2005), Philipp Klaus Krause (2011)",
+          "license": "GPL-2.0-or-later with SDCC library exception"
+        }
+      ],
+      "status": "reviewed_with_library_exception",
+      "release_allowed": true
+    },
+    {
+      "name": "GNU Make",
+      "authors": "GNU Project and contributors",
+      "version": "4.3-4.1build2 locally; runner version varies with Ubuntu 24.04 image",
+      "license": "GPL-3.0-or-later",
+      "source": "https://www.gnu.org/software/make/",
+      "usage": "Build tool only; not included in firmware.",
+      "status": "reviewed",
+      "release_allowed": true
+    },
+    {
+      "name": "Python 3",
+      "authors": "Python Software Foundation and Python contributors",
+      "version": "3.12.3-0ubuntu2.1 locally; runner version varies with Ubuntu 24.04 image",
+      "license": "PSF-2.0",
+      "source": "https://www.python.org/",
+      "usage": "Standard library only, for license metadata checks and host FFT tests; not included in firmware.",
+      "status": "reviewed",
+      "release_allowed": true
+    },
+    {
+      "name": "Host C compiler and math library",
+      "authors": "Free Software Foundation and GCC contributors; GNU C Library contributors",
+      "version": "cc 13.3.0 locally; runner compiler and system library versions vary with Ubuntu 24.04 image",
+      "license": "GCC GPL-3.0-or-later with GCC Runtime Library Exception; glibc libm LGPL-2.1-or-later",
+      "source": "https://gcc.gnu.org/",
+      "usage": "Temporary host-only FFT test executable; neither compiler nor test executable is part of the firmware release.",
+      "status": "reviewed",
+      "release_allowed": true
+    },
+    {
+      "name": "SDCC standard header stdint.h",
+      "authors": "Maarten Brock and Philipp Klaus Krause (stdint.h)",
+      "version": "sdcc-libraries 4.2.0+dfsg-1",
+      "license": "GPL-2.0-or-later with SDCC library exception",
+      "source": "https://sources.debian.org/src/sdcc/4.2.0+dfsg-1/debian/copyright/",
+      "usage": "The build includes the SDCC-provided stdint.h; it declares fixed-width integer types and is not a separately linked runtime module.",
+      "status": "reviewed_with_library_exception",
+      "release_allowed": true
+    },
+    {
+      "name": "GitHub CLI",
+      "authors": "GitHub",
+      "version": "Preinstalled on GitHub-hosted Ubuntu 24.04 runner; version not pinned",
+      "license": "MIT",
+      "source": "https://github.com/cli/cli",
+      "usage": "Creates a release only after the manual workflow and release-license gate; not included in firmware.",
+      "status": "reviewed",
+      "release_allowed": true
+    },
+    {
+      "name": "actions/checkout",
+      "authors": "GitHub",
+      "version": "v7.0.1",
+      "revision": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "license": "MIT",
+      "source": "https://github.com/actions/checkout",
+      "status": "reviewed",
+      "release_allowed": true
+    },
+    {
+      "name": "actions/upload-artifact",
+      "authors": "GitHub",
+      "version": "v7.0.2",
+      "revision": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "license": "MIT",
+      "source": "https://github.com/actions/upload-artifact",
+      "status": "reviewed",
+      "release_allowed": true
+    },
+    {
+      "name": "actions/download-artifact",
+      "authors": "GitHub",
+      "version": "v8.0.2",
+      "revision": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
+      "license": "MIT",
+      "source": "https://github.com/actions/download-artifact",
+      "status": "reviewed",
+      "release_allowed": true
+    }
+  ]
+}

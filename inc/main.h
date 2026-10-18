@@ -1,49 +1,26 @@
-//*****************************************************************************
-//
-//*****************************************************************************
+/* SPDX-License-Identifier: MIT */
+#ifndef MAIN_H
+#define MAIN_H
 
-#include "stm8s.h"
+#include <stdint.h>
 
-//----------------------------------------------------------------------------------
+/* A small status type used by the OLED routines and hardware setup. */
+typedef enum {
+  ERROR = 0,
+  SUCCESS = 1
+} ErrorStatus;
 
-
-//----------------------------------------------------------------------------------
-typedef union {
-    struct {
-        u8 LB;
-        u8 HB;
-    };
-    u16 all;
-} Word;
-
-typedef union {
-   struct {
-      u8 LB;
-      u8 MB;
-      u8 HB;
-      u8 HHB;
-   };
-   u32 all;
-}Line;
-
-extern __IO u32 count;
-
-//----------------------------------------------------------------------------------
-
-void Init_CLK   (void);
-void Init_GPIO  (void);
-void Init_ADC   (u8 channel);
-void Init_I2C   (void);
-void Init_ITC   (void);
-void Init_EXTI  (void);
+void Init_CLK(void);
+void Init_GPIO(void);
+void Init_ADC(uint8_t channel);
+void ADC_Reinitialize(void);
+void Init_I2C(void);
 void TIM4_Config(void);
-void TIM1_Config(void);
-void Init_AWU   (void);
-void Init_SWIM  (void);
 
-void delay      (u32 nTime);
+uint16_t ADC_ReadConversionValue(void);
+void ADC_ClearEndOfConversion(void);
+void ADC_StartConversion(void);
+void TIM4_ClearUpdateFlag(void);
+void CPU_EnableInterrupts(void);
 
-//----------------------------------------------------------------------------------
-
-
-
+#endif
