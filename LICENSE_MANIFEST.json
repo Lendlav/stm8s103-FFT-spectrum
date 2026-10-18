@@ -84,7 +84,7 @@
       "version": "Preinstalled on GitHub-hosted Ubuntu 24.04 runner; version not pinned",
       "license": "MIT",
       "source": "https://github.com/cli/cli",
-      "usage": "Creates a release only after the manual workflow and release-license gate; not included in firmware.",
+      "usage": "Creates a branch pre-release after a successful build and release clearance; not included in firmware.",
       "status": "reviewed",
       "release_allowed": true
     },

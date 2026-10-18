@@ -39,8 +39,9 @@ make clean
 ```
 
 GitHub Actions собирает ветку `stm8s103-FFT-spectrum-sdcc` при каждом push.
-Файлы прошивки доступны в артефактах соответствующего запуска. На реальном
-устройстве прошивка пока не проверялась.
+Файлы прошивки доступны в артефактах соответствующего запуска; после успешной
+проверки допуска публикуется prerelease. На реальном устройстве прошивка пока
+не проверялась.
 
 ## English
 
@@ -80,5 +81,5 @@ make clean
 ```
 
 GitHub Actions builds `stm8s103-FFT-spectrum-sdcc` on every push. Firmware files
-are available in the artifacts for that run. The firmware has not yet been
-tested on hardware.
+are available in that run's artifacts; a prerelease is published after clearance
+passes. The firmware has not yet been tested on hardware.
